@@ -5,12 +5,11 @@ import fs from "fs";
   // Launch the browser and open a new blank page
   const browser = await puppeteer.launch({
     headless: false,
-    slowMo: 20,
   });
 
   const page = await browser.newPage();
 
-  const nomeArquivo = "turtles-data.json";
+  const nomeArquivo = "imoveis-recife.json";
 
   fs.access(nomeArquivo, fs.constants.F_OK, (err) => {
     if (err) {
@@ -21,49 +20,44 @@ import fs from "fs";
         if (err) {
           console.error(`Erro ao excluir o arquivo "${nomeArquivo}": ${err}`);
         } else {
-          console.log(`O arquivo "${nomeArquivo}" foi excluído com sucesso.`);
+          console.log(
+            `O arquivo "${nomeArquivo}" foi excluído com sucesso, para ser reescrito.`
+          );
         }
       });
     }
   });
 
-  const url = "https://www.olx.com.br/imoveis/estado-pe";
-  await page.goto(url);
-
-  page.setDefaultTimeout(180_000)
+  const url = "https://www.olx.com.br/imoveis/aluguel/estado-pe";
+  await page.goto(url, { timeout: 180_000 });
 
   // Set screen size
   await page.setViewport({ width: 1080, height: 1024 });
 
-  // a aplicação entra no contexto do iframe
-//   const iframeElement = await page.$("iframe");
-//   const iframe = await iframeElement.contentFrame();
+  const elements = await page.$$(".sc-dRFtgE");
 
-  const elements = await page.$$(".sc-dRFtgE"); // Use o seletor correto para os links dentro do iframe
+  console.log(
+    "Aguarde enquanto coleto as informações, isso pode levar um tempo... (Max: 3 min)"
+  );
 
   const urlsArray = [];
-
   for (let element of elements) {
-    // let learnMoreBtn = await element.$(".btn");
-
     let href = await element.evaluate((el) => el.getAttribute("href"));
 
     urlsArray.push(href);
   }
-  console.log(urlsArray)
-  const dataArray = [];
 
+  const imoveisArray = [];
   for (let url of urlsArray) {
     let newPage = await browser.newPage();
 
     await newPage.goto(url);
-
-    await handleData(newPage, dataArray);
+    await handleData(newPage, imoveisArray, url);
 
     await newPage.close();
   }
 
-  const JSONData = JSON.stringify(dataArray, null, 2);
+  const JSONData = JSON.stringify(imoveisArray, null, 2);
 
   // cria um arquivo JSON e escreve os dados das tartarugas nesse arquivo
   fs.writeFile(nomeArquivo, JSONData, (err) => {
@@ -77,21 +71,44 @@ import fs from "fs";
   await browser.close();
 })();
 
-async function handleData(newPage, dataArray) {
-  let areaDiv = await newPage.$$(".jNyXWf");
-  let area = areaDiv[areaDiv.length - 1]
-  let areaContent = await area.evaluate((el) => el.textContent);
-  console.log(areaContent)
+async function handleData(newPage, imoveisArray, url) {
+  let areaDiv = await newPage.$$(".sc-bwzfXH.ad__h3us20-0.ikHgMx");
+  let areaWanted = areaDiv[2];
+  const areaContent = await areaWanted.evaluate((el) => {
+    const children = Array.from(
+      el.querySelectorAll(".ad__sc-1f2ug0x-1.cpGpXB.sc-hSdWYo.gwYTWo")
+    );
+    if (children.length >= 3) {
+      return children[2].textContent;
+    } else {
+      return "Não informado";
+    }
+  });
 
-//   let lead = await newPage.waitForSelector(".lead");
-//   let descriptionContent = await lead.evaluate((el) => el.textContent);
+  let aluguel;
+  try {
+    aluguel = await newPage.$eval(".ad__sc-1wimjbb-1", (el) => el.textContent);
+  } catch (error) {
+    if (error.message.includes("failed to find element matching selector")) {
+      aluguel = "Não informado";
+    } else {
+      console.error("Erro ao extrair o texto do elemento:", error);
+    }
+  }
 
-//   let turtleImg = await newPage.waitForSelector(".turtle-image");
-//   let imgUrl = await turtleImg.evaluate((el) => el.getAttribute("src"));
+  let elements = await newPage.$$(".sc-EHOje.lePqYm");
+  let quartos;
+  if (elements.length === 3) {
+    elements = await elements[elements.length - 1];
+    quartos = await elements.evaluate((el) => el.textContent);
+  } else {
+    quartos = "Não informado";
+  }
 
-//   dataArray.push({
-//     species: areaContent,
-//     description: descriptionContent.trim(),
-//     imageUrl: imgUrl,
-//   });
+  imoveisArray.push({
+    link: url,
+    regiao: areaContent,
+    preco_aluguel: aluguel,
+    quartos: quartos,
+  });
 }

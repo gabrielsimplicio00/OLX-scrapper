@@ -1,0 +1,23 @@
+{
+  "name": "olx-scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabrielsimplicio00/OLX-scrapper.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gabrielsimplicio00/OLX-scrapper/issues"
+  },
+  "homepage": "https://github.com/gabrielsimplicio00/OLX-scrapper#readme",
+  "dependencies": {
+    "puppeteer": "^20.9.0"
+  }
+}
